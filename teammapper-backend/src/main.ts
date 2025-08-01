@@ -5,6 +5,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware'
 import { GlobalExceptionFilter } from './filters/global-exception.filter'
 import { Logger } from '@nestjs/common'
 import { NestExpressApplication } from '@nestjs/platform-express'
+import { join } from 'path'
 
 async function bootstrap() {
   const logger = new Logger('Main Process')
@@ -48,6 +49,26 @@ async function bootstrap() {
       },
     })
   )
+
+  // Serve static assets first (these take priority)
+  app.useStaticAssets(join(__dirname, '..', 'client/browser/assets'), {
+    prefix: '/assets/',
+    setHeaders: (res, path) => {
+      // Cache static assets
+      if (
+        path.match(
+          /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map)$/
+        )
+      ) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000')
+      }
+    },
+  })
+
+  // Serve Angular app files (js, css, html)
+  app.useStaticAssets(join(__dirname, '..', 'client/browser'), {
+    extensions: ['html', 'js', 'css'],
+  })
 
   await app.listen(configService.getPort())
 }
